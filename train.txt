@@ -1,0 +1,39 @@
+@echo off
+setlocal
+
+REM Define directories
+set TRAINING_DIR=D:\Edge Downloads\Number-Plate-Recognition-Using-OpenCV-main\dataset\images
+set OUTPUT_DIR=D:\Edge Downloads\Number-Plate-Recognition-Using-OpenCV-main\dataset
+set LANG=custom_lang
+
+REM Define paths to executables
+set TESSERACT_PATH="C:\Program Files\Tesseract-OCR\tesseract.exe"
+set COMBINE_LANG_MODEL_PATH="C:\Program Files\Tesseract-OCR\combine_lang_model.exe"
+set LSTMTRAINING_PATH="C:\Program Files\Tesseract-OCR\lstmtraining.exe"
+set COMBINE_TESSDATA_PATH="C:\Program Files\Tesseract-OCR\combine_tessdata.exe"
+
+REM Combine the box and image files into .lstmf files
+for %%f in ("%TRAINING_DIR%\*.jpg") do (
+    %TESSERACT_PATH% "%%f" "%%~nf" --psm 6 lstm.train
+)
+
+REM Extract the unicharset
+%COMBINE_LANG_MODEL_PATH% ^
+  --input_dir "%TRAINING_DIR%" ^
+  --output_dir "%OUTPUT_DIR%" ^
+  --lang %LANG%
+
+REM Train the model
+%LSTMTRAINING_PATH% ^
+  --model_output "%OUTPUT_DIR%\%LANG%" ^
+  --train_listfile "%TRAINING_DIR%\list.train" ^
+  --continue_from %TESSDATA_PREFIX%\tessconfigs\best.traineddata ^
+  --append_index 5 ^
+  --net_spec "[Lfx256 O1c]" ^
+  --target_error_rate 0.01 ^
+  --max_iterations 5000
+
+REM Package the traineddata file
+%COMBINE_TESSDATA_PATH% -o "%OUTPUT_DIR%\%LANG%.traineddata" "%OUTPUT_DIR%\%LANG%*"
+
+endlocal
